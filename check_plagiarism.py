@@ -139,10 +139,37 @@ if uploaded_file:
     for link in all_sources_links:
         st.write(f"[Source Link]({link})")
 
-    # Mengambil teks dari sumber
-    sources_texts = []
-    for link in all_sources_links:
-        try:
-            page = requests.get(link)
-            soup = BeautifulSoup(page.text, 'html.parser')
-            sources_text
+        # Mengambil teks dari sumber
+        sources_texts = []
+        for link in all_sources_links:
+            try:
+                page = requests.get(link)
+                soup = BeautifulSoup(page.text, 'html.parser')
+                sources_texts.append(clean_extracted_text(soup.get_text()))
+            except Exception as e:
+                st.write(f"Could not access {link}: {e}")
+                continue
+
+        st.write("Detecting plagiarism...")
+        similarities, vectorizer, tfidf_matrix = detect_plagiarism(uploaded_text, sources_texts)
+        avg_similarity = similarities.mean() if len(similarities) > 0 else 0
+
+        st.write(f"Similarity Score: {avg_similarity * 100:.2f}%")
+
+        # Menampilkan kalimat yang terdeteksi plagiarisme
+        if len(similarities) > 0:
+            st.write("Highlighted Plagiarized Sentences:")
+            for i, similarity in enumerate(similarities):
+                if similarity > 0.1:  # Threshold untuk plagiarisme
+                    source_text = sources_texts[i]
+                    st.write(f"From Source {i + 1}:")
+                    st.text(" ".join(source_text.split()[:50]))  # Menampilkan 50 kata pertama
+
+        # Membuat diagram pie
+        labels = ['Original', 'Plagiarized']
+        sizes = [100 - avg_similarity * 100, avg_similarity * 100]
+        fig, ax = plt.subplots()
+        ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
+        ax.axis('equal')
+        st.pyplot(fig)
+
